@@ -1,0 +1,1417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>We Insure Things — Sales Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --bg:#e8f1f8; --surface:#ffffff; --surface-2:#f4f8fb;
+    --ink:#06121d; --ink-soft:#36485a; --muted:#6b7280;
+    --line:#dbe7f1; --line-soft:#eef4fa;
+    --navy:#06121d; --amber:#00aeef; --amber-soft:#d6f1fc;       /* WIT Blue + Ink navy */
+    --emerald:#15a05c; --emerald-soft:#ddf6e9; --rose:#ff6868;   /* success green for money / positive */
+    --shadow:0 1px 2px rgba(6,18,29,.05), 0 10px 30px rgba(0,174,239,.10);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 100% -10%, #cdeefb 0, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Hanken Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.num{font-family:"Fraunces",Georgia,serif}
+  .num{font-variant-numeric:tabular-nums}
+  button{font-family:inherit;cursor:pointer}
+  a{color:var(--amber)}
+
+  /* layout */
+  .app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+  .side{
+    background:var(--navy);color:#cfd8e2;padding:26px 20px;
+    display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+  .brand .mark{
+    width:42px;height:42px;border-radius:13px;flex:none;
+    background:linear-gradient(150deg,var(--amber),#007eae);
+    display:grid;place-items:center;color:#06121d;font-family:"Fraunces";font-weight:700;font-size:19px;
+    box-shadow:0 6px 16px rgba(0,174,239,.4);
+  }
+  .brand .name{font-family:"Fraunces";color:#fff;font-weight:600;font-size:17px;line-height:1.15}
+  .brand .name small{display:block;color:#8aa0b4;font-family:"Hanken Grotesk";font-weight:500;font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+  .navbtn{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:transparent;border:0;color:#aebccb;padding:11px 13px;border-radius:10px;
+    font-size:14.5px;font-weight:500;transition:.16s;
+  }
+  .navbtn svg{width:18px;height:18px;flex:none;opacity:.85}
+  .navbtn:hover{background:rgba(255,255,255,.06);color:#fff}
+  .navbtn.active{background:linear-gradient(135deg,var(--amber),#007eae);color:#fff;font-weight:600}
+  .navbtn.active svg{opacity:1}
+  .side .spacer{flex:1}
+  .side .foot{font-size:11.5px;color:#6f8295;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;line-height:1.5}
+
+  .main{padding:30px 38px 60px;max-width:1200px;width:100%}
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:26px;flex-wrap:wrap}
+  .topbar h1{margin:0;font-size:30px;font-weight:600;letter-spacing:-.01em}
+  .topbar .sub{color:var(--muted);font-size:13.5px;margin-top:3px}
+
+  .btn{
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;transition:.15s;
+    display:inline-flex;align-items:center;gap:8px;box-shadow:var(--shadow)
+  }
+  .btn:hover{border-color:#c3bba8;transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(135deg,#06121d,#16293a);color:#fff;border-color:#06121d}
+  .btn.primary:hover{box-shadow:0 8px 24px rgba(16,19,26,.28)}
+  .btn.amber{background:linear-gradient(135deg,var(--amber),#007eae);color:#fff;border-color:#007eae}
+  .btn.ghost{background:transparent;box-shadow:none}
+  .btn.danger{color:var(--rose);border-color:#e3c9c6;background:#fbf3f2}
+  .btn svg{width:16px;height:16px}
+
+  .grid{display:grid;gap:18px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .pad{padding:20px}
+  .kpi{padding:18px 20px;position:relative;overflow:hidden}
+  .kpi .lab{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .kpi .val{font-size:30px;font-weight:600;margin-top:8px;letter-spacing:-.02em}
+  .kpi .delta{font-size:12.5px;margin-top:6px;color:var(--muted)}
+  .kpi.accent .val{color:var(--emerald)}
+  .kpi .ico{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--surface-2)}
+  .kpi .ico svg{width:18px;height:18px;color:var(--ink-soft)}
+
+  .row2{grid-template-columns:1.5fr 1fr}
+  .secthead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .secthead h3{margin:0;font-size:17px;font-weight:600}
+  .secthead .tag{font-size:12px;color:var(--muted)}
+
+  /* goal */
+  .goalbar{height:12px;border-radius:8px;background:var(--surface-2);overflow:hidden;margin-top:14px;border:1px solid var(--line-soft)}
+  .goalbar > div{height:100%;background:linear-gradient(90deg,#15a05c,#33d17a);border-radius:8px;transition:width .5s}
+  .goalmeta{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;color:var(--ink-soft)}
+
+  /* table */
+  table{width:100%;border-collapse:collapse}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap}
+  th:hover{color:var(--ink)}
+  td{padding:12px;border-bottom:1px solid var(--line-soft);font-size:14px;vertical-align:middle}
+  tbody tr:hover{background:var(--surface-2)}
+  .money{font-family:"Fraunces";font-variant-numeric:tabular-nums;font-weight:500}
+  .pos{color:var(--emerald);font-weight:600}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.new{background:var(--amber-soft);color:#007eae}
+  .pill.renewal{background:#eef2f7;color:#51607a}
+  .pill.bound{background:var(--emerald-soft);color:#15a05c}
+  .pill.pending{background:#e3f3fb;color:#0a7290}
+  .pill.lost{background:#ffe3e3;color:#d83b3b}
+  .iconbtn{border:0;background:transparent;padding:6px;border-radius:7px;color:var(--muted)}
+  .iconbtn:hover{background:var(--surface-2);color:var(--ink)}
+  .iconbtn.del:hover{color:var(--rose)}
+  .iconbtn svg{width:16px;height:16px;display:block}
+
+  .empty{padding:46px 20px;text-align:center;color:var(--muted)}
+  .empty svg{width:40px;height:40px;opacity:.4;margin-bottom:8px}
+
+  /* filters */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  input,select,textarea{
+    font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface);
+    border:1px solid var(--line);border-radius:9px;padding:9px 11px;outline:none;transition:.15s;width:100%
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
+  .search{position:relative;flex:1;min-width:180px}
+  .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+  .search input{padding-left:34px}
+  .toolbar select{width:auto;min-width:130px}
+
+  /* todos */
+  .todo{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-soft)}
+  .todo:last-child{border-bottom:0}
+  .todo .check{width:21px;height:21px;border-radius:6px;border:2px solid var(--line);flex:none;margin-top:1px;display:grid;place-items:center;background:var(--surface);transition:.15s}
+  .todo .check:hover{border-color:var(--emerald)}
+  .todo.done .check{background:var(--emerald);border-color:var(--emerald)}
+  .todo.done .check svg{opacity:1}
+  .todo .check svg{width:13px;height:13px;color:#fff;opacity:0}
+  .todo .body{flex:1;min-width:0}
+  .todo .txt{font-weight:500}
+  .todo.done .txt{text-decoration:line-through;color:var(--muted)}
+  .todo .meta{font-size:12.5px;color:var(--muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .due.over{color:var(--rose);font-weight:600}
+  .prio{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .prio.high{background:var(--rose)} .prio.med{background:var(--amber)} .prio.low{background:#9aa6b2}
+
+  /* modal */
+  .ov{position:fixed;inset:0;background:rgba(13,20,30,.5);backdrop-filter:blur(3px);display:none;place-items:center;z-index:50;padding:20px}
+  .ov.open{display:grid}
+  .modal{background:var(--surface);border-radius:18px;width:100%;max-width:620px;max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.4);animation:pop .2s ease}
+  @keyframes pop{from{transform:translateY(12px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+  .modal .mh{display:flex;align-items:center;justify-content:space-between;padding:22px 26px;border-bottom:1px solid var(--line)}
+  .modal .mh h2{margin:0;font-size:21px;font-weight:600}
+  .modal .mb{padding:24px 26px}
+  .modal .mf{padding:18px 26px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;background:var(--surface-2);border-radius:0 0 18px 18px}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+  .field .hint{font-size:11.5px;color:var(--muted)}
+  .commbox{grid-column:1/-1;background:var(--emerald-soft);border:1px solid #b7e6cd;border-radius:11px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+  .commbox .l{font-size:13px;color:#15a05c;font-weight:600}
+  .commbox .v{font-family:"Fraunces";font-size:24px;font-weight:600;color:#15a05c}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--navy);color:#fff;padding:13px 20px;border-radius:11px;font-size:14px;font-weight:500;box-shadow:0 16px 40px rgba(0,0,0,.3);z-index:80;transition:.35s cubic-bezier(.2,.9,.3,1);display:flex;align-items:center;gap:10px;max-width:90vw}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast svg{width:18px;height:18px;color:var(--amber)}
+
+  .settings-sec{margin-bottom:8px}
+  .settings-sec h3{font-size:15px;margin:0 0 4px}
+  .settings-sec p{margin:0 0 14px;color:var(--muted);font-size:13px}
+  .chartwrap{position:relative;height:240px}
+  .minilegend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--ink-soft)}
+  .minilegend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+  /* ===== AgencyZoom-style dashboard ===== */
+  .panelrow{display:grid;grid-template-columns:1.42fr 1fr;gap:18px;margin-bottom:18px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px 24px}
+  .panel .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px}
+  .panel .ph h3{margin:0;font-family:"Fraunces";font-size:18px;font-weight:600}
+  .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .seg button{border:0;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 14px;border-radius:999px}
+  .seg button.on{background:var(--amber);color:#fff;box-shadow:0 2px 6px rgba(0,174,239,.35)}
+
+  .pace{display:grid;grid-template-columns:minmax(190px,1fr) 1.1fr;gap:22px;align-items:center}
+  .tiles{display:flex;flex-direction:column;gap:12px}
+  .tile{position:relative;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:12px;padding:14px 16px;overflow:hidden}
+  .tile .tl{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .tile .tv{font-family:"Fraunces";font-size:25px;font-weight:600;letter-spacing:-.01em;margin-top:3px}
+  .tile.dim{background:#eef2f7}
+  .tile .tico{position:absolute;right:12px;bottom:8px;opacity:.12}
+  .tile .tico svg{width:46px;height:46px;color:var(--ink)}
+  .ringwrap{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring{position:relative;width:230px;height:230px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .ctr{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .ring .ctr .lab{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .ring .ctr .big{font-family:"Fraunces";font-size:40px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+  .achieved{display:flex;align-items:center;gap:8px;margin-top:16px;color:var(--ink-soft);font-size:13px}
+  .achieved .d{width:9px;height:9px;border-radius:50%;background:var(--emerald)}
+  .achieved b{font-family:"Fraunces";font-weight:600}
+
+  .mstat{border:1px solid var(--line-soft);border-radius:12px;padding:16px 18px;margin-bottom:12px;background:var(--surface-2)}
+  .mstat.row{display:flex;align-items:center;justify-content:space-between}
+  .mstat .lab{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .mstat .big{font-family:"Fraunces";font-size:30px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+  .mstat .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .mstat .rt{text-align:right}
+  .mstat .pct{font-family:"Fraunces";font-size:26px;font-weight:600}
+  .barline{height:6px;border-radius:6px;background:#dfe7f0;overflow:hidden;margin-top:12px}
+  .barline > div{height:100%;border-radius:6px}
+  .up{color:var(--emerald);font-weight:700} .down{color:var(--rose);font-weight:700}
+
+  .wb{display:grid;grid-template-columns:248px 1fr;gap:22px}
+  .wb .filters .fl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .fbox{border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin-bottom:10px;background:var(--surface)}
+  .fbox label{display:block;font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:5px}
+  .fbox select{border:0;padding:0;background:transparent;font-weight:600;font-size:14px;cursor:pointer}
+  .fbox select:focus{box-shadow:none}
+  .metricpills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .mp{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--ink-soft);display:flex;gap:7px;align-items:center}
+  .mp.on{background:var(--amber);border-color:var(--amber);color:#fff}
+  .mp .n{font-family:"Fraunces"}
+
+  @media(max-width:980px){ .panelrow{grid-template-columns:1fr} .pace{grid-template-columns:1fr} .ring{width:200px;height:200px} .wb{grid-template-columns:1fr} }
+
+  /* ===== loading bar ===== */
+  .loadbar{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;
+    background:linear-gradient(90deg,var(--amber),#56c2f5);opacity:0;transition:width .3s ease, opacity .3s}
+  .loadbar.on{width:80%;opacity:1;transition:width 8s cubic-bezier(.1,.7,.1,1),opacity .2s}
+  .ncbadge{display:inline-block;font-size:11px;font-weight:700;color:#15803d;background:#dcfce7;border-radius:999px;padding:3px 9px;margin-right:6px;vertical-align:middle}
+  .iconbtn.nc:hover{color:var(--amber)}
+
+  /* ===== Hot List ===== */
+  .hotgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .hotcard{position:relative;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--amber);
+    border-radius:14px;padding:16px 16px 14px;box-shadow:var(--shadow);transition:.15s}
+  .hotcard:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,174,239,.14)}
+  .hotcard .top{display:flex;align-items:flex-start;gap:11px}
+  .hotcard .emoji{font-size:26px;line-height:1;flex:none}
+  .hotcard .nm{font-family:"Fraunces";font-weight:600;font-size:17px;color:var(--ink);word-break:break-word}
+  .hotcard .acts{margin-left:auto;display:flex;gap:2px;flex:none}
+  .hotcard .action{margin-top:12px;font-size:13.5px;color:var(--ink-soft);display:flex;gap:7px;align-items:flex-start}
+  .hotcard .action .muted{color:var(--muted);font-style:italic}
+  .hotcard .due{margin-top:9px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+    background:var(--amber-soft);color:#007eae;padding:5px 10px;border-radius:999px}
+  .hotcard .due.over{background:#fde7e7;color:#c0392b}
+  .hotcard .due.none{background:var(--surface-2);color:var(--muted);font-weight:500}
+  .hotmeter{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .hotmeter .bar{flex:1;height:9px;border-radius:6px;background:var(--surface-2);overflow:hidden;max-width:260px;border:1px solid var(--line-soft)}
+  .hotmeter .bar > div{height:100%;background:linear-gradient(90deg,var(--amber),#56c2f5);border-radius:6px;transition:width .4s}
+  .hotmeter .cnt{font-family:"Fraunces";font-weight:600;font-size:14px}
+  .hotmeter .cnt.full{color:var(--rose)}
+  .emojipick{display:flex;flex-wrap:wrap;gap:7px}
+  .emojipick button{font-size:20px;width:42px;height:42px;border-radius:11px;border:1px solid var(--line);background:var(--surface);line-height:1}
+  .emojipick button.on{border-color:var(--amber);background:var(--amber-soft);box-shadow:0 0 0 3px rgba(0,174,239,.15)}
+  /* ===== login gate ===== */
+  .login{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;
+    background:radial-gradient(900px 500px at 50% -10%, #0a3a55 0, var(--navy) 60%)}
+  .login-card{background:var(--surface);border-radius:20px;padding:40px 38px;width:100%;max-width:380px;text-align:center;
+    box-shadow:0 30px 80px rgba(0,0,0,.4)}
+  .login-mark{width:60px;height:60px;border-radius:16px;margin:0 auto 18px;
+    background:linear-gradient(150deg,var(--amber),#007eae);color:#06121d;
+    font-family:"Fraunces";font-weight:700;font-size:28px;display:grid;place-items:center;
+    box-shadow:0 8px 22px rgba(0,174,239,.4)}
+  .login-card h1{font-family:"Fraunces";font-size:24px;font-weight:600;margin:0;color:var(--ink)}
+  .login-sub{color:var(--muted);font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin:4px 0 26px}
+  .gbtn-wrap{display:flex;justify-content:center;min-height:44px}
+  .login-msg{color:var(--rose);font-size:13px;font-weight:600;margin-top:16px;min-height:18px}
+  .login-note{color:var(--muted);font-size:12px;margin-top:22px;border-top:1px solid var(--line-soft);padding-top:16px}
+  .userchip{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .userchip img{width:28px;height:28px;border-radius:50%;flex:none}
+  .userchip .un{color:#fff;font-size:12.5px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .userchip .ue{color:#8aa0b4;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .signout{background:rgba(255,255,255,.08);border:0;color:#cfe6f5;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;width:100%}
+  .signout:hover{background:rgba(255,255,255,.15);color:#fff}
+  @media(max-width:920px){
+    .app{grid-template-columns:1fr}
+    .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}
+    .side .brand{margin-bottom:0;margin-right:auto}
+    .side .navbtn{width:auto} .side .spacer,.side .foot{display:none}
+    .kpis{grid-template-columns:repeat(2,1fr)} .row2{grid-template-columns:1fr}
+    .main{padding:22px} .fgrid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="login" id="login" style="display:none">
+  <div class="login-card">
+    <div class="login-mark">W</div>
+    <h1>We Insure Things</h1>
+    <p class="login-sub">Sales Tracker</p>
+    <div id="gbtn" class="gbtn-wrap"></div>
+    <div id="loginMsg" class="login-msg"></div>
+    <div class="login-note">Restricted to authorized agency accounts.</div>
+  </div>
+</div>
+<div class="app" id="app" style="display:none">
+  <aside class="side">
+    <div class="brand">
+      <div class="mark">W</div>
+      <div class="name">We Insure Things<small>Sales Tracker</small></div>
+    </div>
+    <button class="navbtn active" data-nav="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      Dashboard
+    </button>
+    <button class="navbtn" data-nav="hotlist">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+      Hot List <span id="hotBadge" style="margin-left:auto;font-size:11px;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:999px"></span>
+    </button>
+    <button class="navbtn" data-nav="sales">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Sales Log
+    </button>
+    <button class="navbtn" data-nav="todos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      To-Dos <span id="todoBadge" style="margin-left:auto;font-size:11px;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:999px"></span>
+    </button>
+    <button class="navbtn" data-nav="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </button>
+    <div class="spacer"></div>
+    <div class="foot" id="sideFoot">Data is saved to this browser/app. Use <strong>Settings → Export</strong> to back up.</div>
+  </aside>
+
+  <main class="main" id="view"></main>
+</div>
+
+<!-- Sale modal -->
+<div class="ov" id="saleOv">
+  <div class="modal">
+    <div class="mh"><h2 id="saleTitle">Log a Sale</h2>
+      <button class="iconbtn" data-action="closeSale"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mb">
+      <div class="fgrid">
+        <div class="field"><label>Date</label><input type="date" id="f_date"></div>
+        <div class="field"><label>Producer</label><input id="f_producer" placeholder="Agent name"></div>
+        <div class="field full"><label>Customer / Insured</label><input id="f_customer" placeholder="e.g. Jane Doe / Acme LLC"></div>
+        <div class="field"><label>Line of Business</label>
+          <select id="f_line">
+            <option>Auto</option><option>Home</option><option>Bundle (Auto+Home)</option>
+            <option>Renters</option><option>Commercial</option><option>General Liability</option>
+            <option>Workers Comp</option><option>Life</option><option>Health</option><option>Umbrella</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Carrier</label><input id="f_carrier" placeholder="e.g. Progressive"></div>
+        <div class="field"><label>Business Type</label>
+          <select id="f_type"><option value="New">New Business</option><option value="Renewal">Renewal</option></select>
+        </div>
+        <div class="field"><label>Status</label>
+          <select id="f_status"><option>Bound</option><option>Pending</option><option>Lost</option></select>
+        </div>
+        <div class="field"><label>Annual Premium ($)</label><input type="number" id="f_premium" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="field"><label>Commission Rate (%)</label><input type="number" id="f_rate" min="0" step="0.1" placeholder="auto"><span class="hint">Leave blank to use your default rate</span></div>
+        <div class="field full"><label>Notes</label><textarea id="f_notes" rows="2" placeholder="Optional"></textarea></div>
+        <div class="commbox"><span class="l">Estimated commission</span><span class="v" id="f_commPreview">$0.00</span></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn ghost" data-action="closeSale">Cancel</button>
+      <button class="btn amber" data-action="saveSale" id="saveSaleBtn">Save sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- Todo modal -->
+<div class="ov" id="todoOv">
+  <div class="modal" style="max-width:480px">
+    <div class="mh"><h2>New To-Do</h2>
+      <button class="iconbtn" data-action="closeTodo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mb">
+      <div class="fgrid" style="grid-template-columns:1fr 1fr">
+        <div class="field full"><label>Task</label><input id="t_text" placeholder="e.g. Follow up with Jane on renewal"></div>
+        <div class="field"><label>Due date</label><input type="date" id="t_due"></div>
+        <div class="field"><label>Priority</label><select id="t_prio"><option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn ghost" data-action="closeTodo">Cancel</button>
+      <button class="btn primary" data-action="saveTodo">Add to-do</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hot List modal -->
+<div class="ov" id="hotOv">
+  <div class="modal" style="max-width:500px">
+    <div class="mh"><h2 id="hotTitle">🔥 Add to Hot List</h2>
+      <button class="iconbtn" data-action="closeHot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mb">
+      <div class="fgrid" style="grid-template-columns:1fr 1fr">
+        <div class="field full"><label>Prospect name</label><input id="h_name" placeholder="e.g. Acme Trucking LLC"></div>
+        <div class="field full"><label>Vibe ✨</label><div class="emojipick" id="h_emojis"></div></div>
+        <div class="field full"><label>📌 Next action</label><input id="h_action" placeholder="e.g. Send commercial auto quote"></div>
+        <div class="field"><label>📅 Next action date</label><input type="date" id="h_due"></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn ghost" data-action="closeHot">Cancel</button>
+      <button class="btn amber" data-action="saveHot" id="saveHotBtn">Add to hot list</button>
+    </div>
+  </div>
+</div>
+
+<div class="loadbar" id="loadbar"></div>
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span id="toastMsg"></span></div>
+
+<script>
+/* ------------------------------------------------------------------ *
+ *  We Insure Things — Sales Tracker
+ *  Backend: wit_app.py (Flask) — detected automatically via /api/config.
+ *  Falls back to localStorage when served standalone.
+ * ------------------------------------------------------------------ */
+
+const BACKEND = { enabled:false, base:'/api', clientId:'' };
+async function detectBackend(){
+  try{
+    const r = await fetch(`${BACKEND.base}/config`, {credentials:'include'});
+    if(r.ok){ const d = await r.json(); BACKEND.enabled = true; BACKEND.clientId = d.clientId || ''; }
+  }catch(e){ BACKEND.enabled = false; }
+}
+
+const Store = (() => {
+  const hasWin = (typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function');
+  async function srvGet(key){
+    const r = await fetch(`${BACKEND.base}/kv/${encodeURIComponent(key)}`, {credentials:'include'});
+    if(r.status === 404) return undefined;
+    if(!r.ok) throw new Error('kv get '+r.status);
+    return (await r.json()).value;
+  }
+  async function srvSet(key, val){
+    const r = await fetch(`${BACKEND.base}/kv/${encodeURIComponent(key)}`, {method:'PUT', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({value:val})});
+    if(!r.ok) throw new Error('kv set '+r.status);
+  }
+  return {
+    async get(key, def){
+      try{
+        if(BACKEND.enabled){ const v = await srvGet(key); return v===undefined ? def : v; }
+        if(hasWin){ const r = await window.storage.get(key); return r ? JSON.parse(r.value) : def; }
+        const v = localStorage.getItem(key); return v ? JSON.parse(v) : def;
+      }catch(e){ return def; }
+    },
+    async set(key, val){
+      try{
+        if(BACKEND.enabled){ await srvSet(key, val); return; }
+        if(hasWin){ await window.storage.set(key, JSON.stringify(val)); }
+        else { localStorage.setItem(key, JSON.stringify(val)); }
+      }catch(e){ console.error('save failed', e); }
+    }
+  };
+})();
+
+const DEFAULT_SETTINGS = {
+  agency:'We Insure Things',
+  userName:'',
+  notifyEmail:'logan@weinsurethings.com',
+  fromEmail:'',
+  rateNew:12,
+  rateRenewal:8,
+  monthlyGoal:200000,
+  webhook:'',
+  webhookToken:'',
+  ncAutoPush:false
+};
+
+let SALES = [], TODOS = [], HOTLIST = [], SETTINGS = {...DEFAULT_SETTINGS};
+let MYGOAL = 0, NCENABLED = false;
+const HOT_MAX = 20;
+let editingId = null, sort = {key:'date', dir:-1};
+const fmt = n => '$' + (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2, maxFractionDigits:2, maximumFractionDigits:2});
+const fmt0 = n => '$' + Math.round(Number(n)||0).toLocaleString('en-US');
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const todayISO = () => new Date().toISOString().slice(0,10);
+const monthKey = d => (d||'').slice(0,7);
+
+function commissionOf(s){
+  const rate = (s.rate!=='' && s.rate!=null) ? Number(s.rate)
+              : (s.type==='Renewal' ? SETTINGS.rateRenewal : SETTINGS.rateNew);
+  return (Number(s.premium)||0) * (Number(rate)||0)/100;
+}
+
+const AUTH = {
+  clientId: '',
+  allowedDomains: ['weinsurethings.com'],
+  allowedEmails: []
+};
+let CURRENT_USER = null;
+
+function decodeJwt(t){
+  try{
+    const b=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    const json=decodeURIComponent(atob(b).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    return JSON.parse(json);
+  }catch(e){ return null; }
+}
+function userAllowed(u){
+  if(!u||!u.email) return false;
+  const email=u.email.toLowerCase();
+  if(AUTH.allowedEmails.map(e=>e.toLowerCase()).includes(email)) return true;
+  const dom=(email.split('@')[1]||'');
+  return AUTH.allowedDomains.length===0 || AUTH.allowedDomains.map(d=>d.toLowerCase()).includes(dom);
+}
+async function showLogin(msg){
+  document.getElementById('app').style.display='none';
+  document.getElementById('login').style.display='grid';
+  if(msg) document.getElementById('loginMsg').textContent=msg;
+  const clientId = BACKEND.enabled ? (BACKEND.clientId || AUTH.clientId) : AUTH.clientId;
+  if(!clientId){ document.getElementById('loginMsg').textContent='Sign-in is not configured.'; return; }
+  let tries=0;
+  (function init(){
+    if(window.google && google.accounts && google.accounts.id){
+      google.accounts.id.initialize({client_id:clientId, callback:onCredential, auto_select:true});
+      google.accounts.id.renderButton(document.getElementById('gbtn'),
+        {theme:'filled_blue', size:'large', shape:'pill', text:'signin_with', width:280});
+      google.accounts.id.prompt();
+    } else if(tries++<60){ setTimeout(init,100); }
+    else { document.getElementById('loginMsg').textContent='Could not load Google Sign-In.'; }
+  })();
+}
+async function onCredential(resp){
+  if(BACKEND.enabled){
+    try{
+      const r = await fetch(`${BACKEND.base}/auth/google`, {method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'}, body:JSON.stringify({credential:resp.credential})});
+      const d = await r.json().catch(()=>({}));
+      if(r.ok){ CURRENT_USER=d.user; document.getElementById('login').style.display='none'; initApp(); return; }
+      document.getElementById('loginMsg').textContent = d.error ? ('Sign-in blocked: '+d.error) : 'Sign-in failed.';
+    }catch(e){ document.getElementById('loginMsg').textContent='Could not reach the server.'; }
+    return;
+  }
+  const p=decodeJwt(resp.credential);
+  const u=p?{email:p.email, name:p.name, picture:p.picture, sub:p.sub}:null;
+  if(!u){ document.getElementById('loginMsg').textContent='Sign-in failed. Try again.'; return; }
+  if(!userAllowed(u)){ document.getElementById('loginMsg').textContent=u.email+' is not authorized for this agency.'; return; }
+  CURRENT_USER=u; await Store.set('wit_user', u);
+  document.getElementById('login').style.display='none';
+  initApp();
+}
+function signOut(){
+  if(BACKEND.enabled){ fetch(`${BACKEND.base}/logout`,{method:'POST',credentials:'include'}).finally(()=>location.reload()); return; }
+  Store.set('wit_user', null); CURRENT_USER=null;
+  try{ google.accounts.id.disableAutoSelect(); }catch(e){}
+  location.reload();
+}
+
+let demoMode = false;
+async function boot(){
+  await detectBackend();
+  if(BACKEND.enabled){
+    try{
+      const r = await fetch(`${BACKEND.base}/me`, {credentials:'include'});
+      if(r.ok){ CURRENT_USER = (await r.json()).user; initApp(); return; }
+    }catch(e){}
+    showLogin(); return;
+  }
+  CURRENT_USER = await Store.get('wit_user', null);
+  if(AUTH.clientId && !userAllowed(CURRENT_USER)){ showLogin(); return; }
+  initApp();
+}
+async function initApp(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='';
+  if(BACKEND.enabled){
+    SALES = (await api('GET','/sales')).sales || [];
+    TODOS = (await api('GET','/todos')).todos || [];
+    HOTLIST = (await api('GET','/hotlist')).hotlist || [];
+    SETTINGS = {...DEFAULT_SETTINGS, ...((await api('GET','/settings')).value || {})};
+    try{ NCENABLED = !!(await api('GET','/integrations')).nowcerts; }catch(e){ NCENABLED=false; }
+    try{ MYGOAL = Number((await api('GET','/prefs')).value?.goal) || 0; }catch(e){ MYGOAL=0; }
+    board.scope = (CURRENT_USER && CURRENT_USER.role==='admin') ? 'agency' : 'mine';
+  } else {
+    SALES = await Store.get('wit_sales', []);
+    TODOS = await Store.get('wit_todos', []);
+    HOTLIST = await Store.get('wit_hotlist', []);
+    SETTINGS = {...DEFAULT_SETTINGS, ...(await Store.get('wit_settings', {}))};
+    const seeded = await Store.get('wit_seeded', false);
+    if(!seeded && !SALES.length){
+      SALES = seedDemo(); TODOS = seedTodos(); demoMode = true;
+      await Store.set('wit_seeded', true); save.sales(); save.todos();
+    }
+  }
+  renderSideFoot();
+  document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.nav)));
+  document.addEventListener('click', onClick);
+  document.addEventListener('input', onInput);
+  go('dashboard');
+}
+function renderSideFoot(){
+  const f=document.getElementById('sideFoot'); if(!f) return;
+  if(CURRENT_USER){
+    f.innerHTML=`<div class="userchip">${CURRENT_USER.picture?`<img src="${esc(CURRENT_USER.picture)}" referrerpolicy="no-referrer" alt="">`:''}
+      <div style="min-width:0"><div class="un">${esc(CURRENT_USER.name||CURRENT_USER.email)}</div><div class="ue">${esc(CURRENT_USER.email)}</div></div></div>
+      <button class="signout" data-action="signout">Sign out</button>`;
+  } else {
+    f.innerHTML='Data is saved to this browser/app. Use <strong>Settings → Export</strong> to back up.';
+  }
+}
+function seedDemo(){
+  const mi=monthInfo(), pad=n=>String(n).padStart(2,'0');
+  const D=d=>`${mi.y}-${pad(mi.m+1)}-${pad(Math.min(d, mi.day||1))}`;
+  const lastM=new Date(mi.y, mi.m-1, 15).toISOString().slice(0,10);
+  const lines=['Auto','Home','Bundle (Auto+Home)','Commercial','Renters','Life','Umbrella'];
+  const carriers=['Progressive','Safeco','Travelers','Nationwide','Foremost','Liberty Mutual'];
+  const rows=[
+    ['Laura T',2400,1,'New'],['Laura T',3100,2,'New'],['Laura T',5200,3,'New'],['Laura T',2900,5,'Renewal'],['Laura T',2658,6,'New'],
+    ['Logan W',1800,1,'New'],['Logan W',4200,2,'New'],['Logan W',3600,4,'Renewal'],['Logan W',2700,5,'New'],['Logan W',1700,6,'New'],
+    ['Chase S',2100,2,'New'],['Chase S',3300,3,'New'],['Chase S',1500,5,'Renewal'],['Chase S',2700,6,'New'],
+    ['Heather C',1900,1,'New'],['Heather C',2600,3,'New'],['Heather C',1700,5,'Renewal'],['Heather C',1700,6,'New'],
+    ['Sergio H',1500,2,'New'],['Sergio H',1400,4,'New'],['Sergio H',1700,6,'Renewal'],
+  ];
+  let i=0;
+  const arr=rows.map(([p,prem,d,type])=>({id:uid()+(i++),date:D(d),producer:p,
+    customer:p.split(' ')[0]+' household '+i, line:lines[i%lines.length], carrier:carriers[i%carriers.length],
+    type, status:'Bound', premium:prem, rate:'', notes:'', createdAt:new Date().toISOString()}));
+  arr.push({id:uid()+'pq',date:D(mi.day||1),producer:'Logan W',customer:'Riverside Logistics',line:'Commercial',carrier:'Travelers',type:'New',status:'Pending',premium:5400,rate:'',notes:'Awaiting signed app',createdAt:new Date().toISOString()});
+  [['Laura T',8200],['Logan W',7600],['Chase S',5100],['Heather C',4200],['Sergio H',3100]].forEach((x,k)=>
+    arr.push({id:uid()+'lm'+k,date:lastM,producer:x[0],customer:x[0]+' (prior month)',line:'Auto',carrier:'Progressive',type:'New',status:'Bound',premium:x[1],rate:'',notes:'',createdAt:new Date().toISOString()}));
+  return arr;
+}
+function seedTodos(){
+  return [
+    {id:uid()+'t1',text:'Follow up with Riverside Logistics on signed app',due:todayISO(),prio:'high',done:false},
+    {id:uid()+'t2',text:'Call Heather about cross-sell on auto renewals',due:'',prio:'med',done:false},
+    {id:uid()+'t3',text:'Send June production recap to leadership',due:'',prio:'low',done:false},
+  ];
+}
+const save = {
+  sales:()=>Store.set('wit_sales',SALES),
+  todos:()=>Store.set('wit_todos',TODOS),
+  settings:()=>Store.set('wit_settings',SETTINGS)
+};
+
+let _pending=0;
+function setLoading(on){
+  _pending=Math.max(0,_pending+(on?1:-1));
+  const b=document.getElementById('loadbar'); if(b) b.classList.toggle('on', _pending>0);
+}
+async function api(method, path, body){
+  const opt={method, credentials:'include', headers:{}};
+  if(body!==undefined){ opt.headers['Content-Type']='application/json'; opt.body=JSON.stringify(body); }
+  setLoading(true);
+  try{
+    const r=await fetch(BACKEND.base+path, opt);
+    if(r.status===401){ location.reload(); throw new Error('session expired'); }
+    if(!r.ok){ let m=''; try{ m=(await r.json()).error||''; }catch(e){} throw new Error(m||(method+' '+path+' → '+r.status)); }
+    return r.status===204 ? null : r.json();
+  } finally { setLoading(false); }
+}
+
+const Data = {
+  async addSale(d){
+    if(BACKEND.enabled){ const rec=(await api('POST','/sales',d)).sale; SALES.unshift(rec); return rec; }
+    const rec={id:uid(),...d,createdAt:new Date().toISOString()}; SALES.push(rec); save.sales(); return rec;
+  },
+  async updateSale(id,d){
+    if(BACKEND.enabled){ const rec=(await api('PATCH','/sales/'+id,d)).sale; const i=SALES.findIndex(s=>s.id===id); if(i>=0) SALES[i]=rec; return rec; }
+    const i=SALES.findIndex(s=>s.id===id); SALES[i]={...SALES[i],...d}; save.sales(); return SALES[i];
+  },
+  async deleteSale(id){
+    if(BACKEND.enabled) await api('DELETE','/sales/'+id);
+    SALES=SALES.filter(s=>s.id!==id); if(!BACKEND.enabled) save.sales();
+  },
+  async addTodo(t){
+    if(BACKEND.enabled){ const rec=(await api('POST','/todos',t)).todo; TODOS.push(rec); return rec; }
+    const rec={id:uid(),...t,done:false}; TODOS.push(rec); save.todos(); return rec;
+  },
+  async toggleTodo(id){
+    const t=TODOS.find(x=>x.id===id); if(!t) return;
+    t.done=!t.done; t.completed_at=t.done?new Date().toISOString():null;
+    if(BACKEND.enabled) await api('PATCH','/todos/'+id,{done:t.done}); else { t.completedAt=t.completed_at; save.todos(); }
+  },
+  async deleteTodo(id){
+    if(BACKEND.enabled) await api('DELETE','/todos/'+id);
+    TODOS=TODOS.filter(x=>x.id!==id); if(!BACKEND.enabled) save.todos();
+  },
+  async clearDone(){
+    const done=TODOS.filter(t=>t.done);
+    if(BACKEND.enabled) for(const t of done) await api('DELETE','/todos/'+t.id);
+    TODOS=TODOS.filter(t=>!t.done); if(!BACKEND.enabled) save.todos();
+  },
+  async saveSettings(){
+    if(BACKEND.enabled) await api('PUT','/settings',{value:SETTINGS}); else save.settings();
+  },
+  async savePrefs(){
+    if(BACKEND.enabled) await api('PUT','/prefs',{value:{goal:MYGOAL}});
+  },
+  async addHot(h){
+    if(HOTLIST.length>=HOT_MAX) throw new Error('full');
+    if(BACKEND.enabled){ const rec=(await api('POST','/hotlist',h)).item; HOTLIST.push(rec); return rec; }
+    const rec={id:uid(),emoji:'🔥',...h,created_at:new Date().toISOString()}; HOTLIST.push(rec); saveHotLocal(); return rec;
+  },
+  async updateHot(id,h){
+    if(BACKEND.enabled){ const rec=(await api('PATCH','/hotlist/'+id,h)).item; const i=HOTLIST.findIndex(x=>x.id===id); if(i>=0) HOTLIST[i]=rec; return rec; }
+    const i=HOTLIST.findIndex(x=>x.id===id); HOTLIST[i]={...HOTLIST[i],...h}; saveHotLocal(); return HOTLIST[i];
+  },
+  async deleteHot(id){
+    if(BACKEND.enabled) await api('DELETE','/hotlist/'+id);
+    HOTLIST=HOTLIST.filter(x=>x.id!==id); if(!BACKEND.enabled) saveHotLocal();
+  }
+};
+function saveHotLocal(){ Store.set('wit_hotlist', HOTLIST); }
+
+let current = 'dashboard';
+function go(view){
+  current = view;
+  document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active', b.dataset.nav===view));
+  const open = TODOS.filter(t=>!t.done).length;
+  document.getElementById('todoBadge').textContent = open || '';
+  document.getElementById('hotBadge').textContent = HOTLIST.length || '';
+  ({dashboard:renderDashboard, hotlist:renderHotlist, sales:renderSales, todos:renderTodos, settings:renderSettings}[view])();
+}
+
+let board = {metric:'premium', time:'MTD', type:'', carrier:'', scope:'agency'};
+
+function monthInfo(){
+  const now=new Date();
+  return {y:now.getFullYear(), m:now.getMonth(), day:now.getDate(),
+    days:new Date(now.getFullYear(), now.getMonth()+1, 0).getDate(),
+    key:now.toISOString().slice(0,7),
+    label:now.toLocaleDateString('en-US',{month:'long'})};
+}
+const sumPrem = list => list.reduce((a,s)=>a+(Number(s.premium)||0),0);
+const mineFilter = list => (board.scope==='mine' && CURRENT_USER) ? list.filter(s=>s.created_by===CURRENT_USER.email) : list;
+
+async function getSummary(){
+  if(BACKEND.enabled) return await api('GET','/report/summary?scope='+board.scope);
+  const mi=monthInfo();
+  const bound=mineFilter(SALES.filter(s=>s.status==='Bound'));
+  const lmKey=new Date(mi.y,mi.m-1,1).toISOString().slice(0,7);
+  const mtdList=bound.filter(s=>monthKey(s.date)===mi.key);
+  const goal = board.scope==='mine' ? (Number(MYGOAL)||0) : (Number(SETTINGS.monthlyGoal)||0);
+  return {goal, day:mi.day, daysInMonth:mi.days,
+    mtdPremium:sumPrem(mtdList), mtdCount:mtdList.length,
+    todayPremium:sumPrem(bound.filter(s=>s.date===todayISO())),
+    lastMonthPremium:sumPrem(bound.filter(s=>monthKey(s.date)===lmKey))};
+}
+async function getLeaderboard(){
+  if(BACKEND.enabled) return await api('GET','/report/leaderboard?'+new URLSearchParams(
+    {scope:board.scope, metric:board.metric, period:board.time, type:board.type, carrier:board.carrier}).toString());
+  let list=mineFilter(SALES.filter(s=>s.status==='Bound'));
+  const mi=monthInfo();
+  if(board.time==='MTD') list=list.filter(s=>monthKey(s.date)===mi.key);
+  else if(board.time==='YTD') list=list.filter(s=>(s.date||'').slice(0,4)===String(mi.y));
+  if(board.type) list=list.filter(s=>s.type===board.type);
+  if(board.carrier) list=list.filter(s=>s.carrier===board.carrier);
+  const mv=s=> board.metric==='policies'?1:(board.metric==='revenue'?commissionOf(s):(Number(s.premium)||0));
+  const by={}; list.forEach(s=>{const k=s.producer||'Unassigned'; by[k]=(by[k]||0)+mv(s);});
+  return {metric:board.metric, totals:{premium:sumPrem(list), policies:list.length, revenue:list.reduce((a,s)=>a+commissionOf(s),0)},
+    rows:Object.entries(by).map(([producer,value])=>({producer,value})).sort((a,b)=>b.value-a.value)};
+}
+
+async function renderDashboard(){
+  const mi = monthInfo();
+  let s;
+  try{ s = await getSummary(); }
+  catch(e){ document.getElementById('view').innerHTML = errorPanel('Could not load your dashboard.'); return; }
+
+  const G=Number(s.goal)||0, day=s.day, days=s.daysInMonth;
+  const mtd=s.mtdPremium, today=s.todayPremium, last=s.lastMonthPremium;
+  const startedToday=Math.max(0, mtd-today);
+  const shouldBe=G*day/days;
+  const goalToday=Math.max(0, shouldBe-startedToday);
+  const stillNeeded=Math.max(0, goalToday-today);
+  const ringPct=goalToday>0?Math.min(100, today/goalToday*100):100;
+  const onPace = G>0 ? mtd>=shouldBe : true;
+  const pctOfGoal=G>0?mtd/G*100:0;
+  const trending=day>0?mtd/day*days:0;
+  const trendVsGoal=G>0?(trending-G)/G*100:0;
+  const vsLast=last>0?(trending-last)/last*100:0;
+  const ringColor = onPace?'var(--emerald)':(ringPct>=50?'var(--amber)':'var(--rose)');
+
+  const who = esc(SETTINGS.userName || (CURRENT_USER&&CURRENT_USER.name&&CURRENT_USER.name.split(' ')[0]) || SETTINGS.agency);
+  const headline = board.scope==='mine'
+    ? (onPace?`Nice work, ${who} — you're on pace 🔥`:`${who}, let's pick up the pace 💪`)
+    : (onPace?`${esc(SETTINGS.agency)} is on pace 🎉`:`${esc(SETTINGS.agency)} — time to push 💪`);
+  const showScope = BACKEND.enabled;
+  const seg = `<div class="seg">
+      <button class="${board.scope==='mine'?'on':''}" data-action="scope" data-id="mine">My book</button>
+      <button class="${board.scope==='agency'?'on':''}" data-action="scope" data-id="agency">Agency</button></div>`;
+
+  document.getElementById('view').innerHTML = `
+    <div class="topbar">
+      <div><h1>Dashboard</h1><div class="sub">${esc(SETTINGS.agency)} · ${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div></div>
+      <div style="display:flex;gap:12px;align-items:center">${showScope?seg:''}<button class="btn amber" data-action="openSale">${plus()} Log a Sale</button></div>
+    </div>
+    ${demoMode?`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;margin-bottom:18px;border-left:4px solid var(--amber);background:var(--amber-soft)">
+      <span style="font-size:13.5px;color:var(--ink-soft)"><b>Showing sample data</b> so you can see the dashboard in action. Clear it whenever you're ready to track real sales.</span>
+      <button class="btn ghost" data-action="clearSample" style="white-space:nowrap">Clear sample data</button></div>`:''}
+
+    <div class="panelrow">
+      <div class="panel">
+        <div class="ph"><h3>${headline}</h3><span style="color:var(--muted);font-size:12px;font-weight:600">${fmt0(G)} ${board.scope==='mine'?'goal':'monthly goal'}</span></div>
+        <div class="pace">
+          <div class="tiles">
+            <div class="tile"><div class="tl">Started today at</div><div class="tv">${fmt0(startedToday)}</div><div class="tico">${starIco()}</div></div>
+            <div class="tile"><div class="tl">Should be at</div><div class="tv">${fmt0(shouldBe)}</div><div class="tico">${histIco()}</div></div>
+            <div class="tile dim"><div class="tl">Goal for today</div><div class="tv">${fmt0(goalToday)}</div><div class="tico">${targetIco()}</div></div>
+          </div>
+          <div class="ringwrap">
+            ${ringSvg(ringPct, ringColor, 'Still needed', fmt0(stillNeeded))}
+            <div class="achieved"><span class="d"></span>Achieved today&nbsp; <b>${fmt0(today)}</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h3>${mi.label} stats</h3><span style="color:var(--muted);font-size:12px;font-weight:600">${board.scope==='mine'?'My book':'Agency'}</span></div>
+        <div class="mstat">
+          <div class="lab">Trending for</div>
+          <div class="big">${fmt0(trending)}</div>
+          <div class="sub">${G>0?`${trendVsGoal>=0?'+':''}${trendVsGoal.toFixed(0)}% ${trendVsGoal>=0?'above':'below'} goal of ${fmt0(G)}`:'Set a goal in Settings'}</div>
+          <div class="barline"><div style="width:${Math.min(100,G>0?trending/G*100:0)}%;background:${trending>=G?'var(--emerald)':'var(--amber)'}"></div></div>
+        </div>
+        <div class="mstat row">
+          <div><div class="lab">Vs last month</div><div class="big ${vsLast>=0?'up':'down'}" style="font-size:24px">${vsLast>=0?'▲ ':'▼ '}${Math.abs(vsLast).toFixed(1)}%</div></div>
+          <div class="rt"><div class="lab">Last month</div><div class="big" style="font-size:24px">${fmt0(last)}</div></div>
+        </div>
+        <div class="mstat row">
+          <div><div class="lab">Currently at</div><div class="big">${fmt0(mtd)}</div></div>
+          <div class="rt"><div class="pct" style="color:var(--amber)">${pctOfGoal.toFixed(0)}%</div><div class="lab">of goal</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ph"><h3>Written Business</h3>
+        <div class="metricpills">${metricPill('premium','Premium')}${metricPill('policies','Policies')}${metricPill('revenue','Revenue')}</div>
+      </div>
+      <div class="wb">
+        <div class="filters">
+          <div class="fl">Filters</div>
+          <div class="fbox"><label>Time Frame</label><select data-board="time">
+            <option ${board.time==='MTD'?'selected':''}>MTD</option>
+            <option ${board.time==='YTD'?'selected':''}>YTD</option>
+            <option value="ALL" ${board.time==='ALL'?'selected':''}>All time</option></select></div>
+          <div class="fbox"><label>Business Type</label><select data-board="type">
+            <option value="">All</option>
+            <option ${board.type==='New'?'selected':''}>New</option>
+            <option ${board.type==='Renewal'?'selected':''}>Renewal</option></select></div>
+          <div class="fbox"><label>Carrier</label><select data-board="carrier">
+            <option value="">All Carriers</option>${carrierOptions()}</select></div>
+        </div>
+        <div><div class="chartwrap" style="height:330px"><canvas id="boardChart"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="pad" style="padding-bottom:0"><div class="secthead"><h3>Recent sales</h3><button class="btn ghost" data-nav-link="sales" style="padding:6px 12px">View all →</button></div></div>
+      ${(()=>{ const recent=mineFilter(SALES.filter(s=>s.status==='Bound')).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
+        return recent.length ? salesTable(recent, false) : emptyState('No sales logged yet','Log your first sale to see it here.'); })()}
+    </div>
+  `;
+  drawBoard();
+  document.querySelectorAll('[data-nav-link]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.navLink)));
+  document.querySelectorAll('[data-board]').forEach(sel=>sel.addEventListener('change',e=>{ board[e.target.dataset.board]=e.target.value; drawBoard(); }));
+}
+
+function carrierOptions(){
+  return [...new Set(SALES.map(s=>s.carrier).filter(Boolean))].sort()
+    .map(c=>`<option ${board.carrier===c?'selected':''}>${esc(c)}</option>`).join('');
+}
+function metricPill(key,label){
+  return `<button class="mp ${board.metric===key?'on':''}" data-action="boardMetric" data-id="${key}">${label} <span class="n" id="mp_${key}"></span></button>`;
+}
+async function drawBoard(){
+  const wrap=document.querySelector('.wb .chartwrap');
+  if(wrap && !document.getElementById('boardChart')) wrap.innerHTML='<canvas id="boardChart"></canvas>';
+  let data;
+  try{ data=await getLeaderboard(); }
+  catch(e){ if(wrap) wrap.innerHTML='<div class="empty" style="padding:48px">Could not load report</div>'; return; }
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  set('mp_premium',fmt0(data.totals.premium)); set('mp_policies',data.totals.policies); set('mp_revenue',fmt0(data.totals.revenue));
+  if(typeof Chart==='undefined') return;
+  const ctx=document.getElementById('boardChart'); if(!ctx) return;
+  if(window._board){ window._board.destroy(); window._board=null; }
+  const entries=data.rows||[];
+  if(!entries.length){ if(wrap) wrap.innerHTML='<div class="empty" style="padding:48px">No sales match these filters</div>'; return; }
+  const palette=['#33d17a','#00aeef','#7fd4f3','#5b6b7a','#b8c2cc','#007eae','#9fe0c2','#cdd9e6'];
+  const isMoney=board.metric!=='policies';
+  window._board=new Chart(ctx,{type:'bar',
+    data:{labels:entries.map(e=>e.producer),datasets:[{data:entries.map(e=>e.value),
+      backgroundColor:entries.map((_,i)=>palette[i%palette.length]),borderRadius:8,maxBarThickness:140}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(isMoney?fmt0(c.parsed.y):c.parsed.y+' policies')}}},
+      scales:{y:{beginAtZero:true,ticks:{font:{family:'Hanken Grotesk'},callback:v=>isMoney?'$'+(v>=1000?(v/1000)+'k':v):v},grid:{color:'#e7edf6'}},
+        x:{ticks:{font:{family:'Hanken Grotesk',size:13}},grid:{display:false}}}}});
+}
+function ringSvg(pct, color, label, big){
+  const r=100, circ=2*Math.PI*r, off=circ*(1-Math.min(100,pct)/100);
+  return `<div class="ring"><svg viewBox="0 0 230 230" width="230" height="230">
+    <circle cx="115" cy="115" r="${r}" fill="none" stroke="var(--line)" stroke-width="13"/>
+    <circle cx="115" cy="115" r="${r}" fill="none" stroke="${color}" stroke-width="13" stroke-linecap="round"
+      stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg>
+    <div class="ctr"><div class="lab">${label}</div><div class="big">${big}</div></div></div>`;
+}
+function errorPanel(msg){ return `<div class="topbar"><div><h1>Dashboard</h1></div></div><div class="card empty">${esc(msg)} <div style="margin-top:10px"><button class="btn" data-action="reloadApp">Retry</button></div></div>`; }
+
+let salesFilter={q:'',status:'',type:''};
+function renderSales(){
+  document.getElementById('view').innerHTML = `
+    <div class="topbar">
+      <div><h1>Sales Log</h1><div class="sub">${SALES.length} total · ${SALES.filter(s=>s.status==='Bound').length} bound · ${SALES.filter(s=>s.status==='Pending').length} pending</div></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn ghost" data-action="exportCsv">${dlIco()} Export CSV</button>
+        <button class="btn amber" data-action="openSale">${plus()} Log a Sale</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="search">${searchIco()}<input id="searchBox" placeholder="Search customer, carrier, producer…" value="${esc(salesFilter.q)}"></div>
+      <select id="fStatus"><option value="">All statuses</option><option>Bound</option><option>Pending</option><option>Lost</option></select>
+      <select id="fType"><option value="">New &amp; Renewal</option><option>New</option><option>Renewal</option></select>
+    </div>
+    <div class="card" id="salesCard"></div>`;
+  document.getElementById('fStatus').value=salesFilter.status;
+  document.getElementById('fType').value=salesFilter.type;
+  renderSalesTable();
+}
+function filteredSales(){
+  return SALES.filter(s=>{
+    if(salesFilter.status && s.status!==salesFilter.status) return false;
+    if(salesFilter.type && s.type!==salesFilter.type) return false;
+    if(salesFilter.q){
+      const q=salesFilter.q.toLowerCase();
+      const hay=[s.customer,s.carrier,s.producer,s.line,s.notes].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=>{
+    let x=a[sort.key], y=b[sort.key];
+    if(sort.key==='premium'){x=Number(x)||0;y=Number(y)||0;}
+    if(sort.key==='commission'){x=commissionOf(a);y=commissionOf(b);}
+    if(x<y) return -1*sort.dir; if(x>y) return 1*sort.dir; return 0;
+  });
+}
+function renderSalesTable(){
+  const rows=filteredSales();
+  const card=document.getElementById('salesCard');
+  card.innerHTML = rows.length ? salesTable(rows,true)
+    : emptyState('No matching sales', SALES.length?'Try clearing your filters.':'Log your first sale to get started.');
+}
+function salesTable(rows, actions){
+  const arrow=k=> sort.key===k ? (sort.dir<0?' ↓':' ↑') : '';
+  return `<table><thead><tr>
+    <th data-sort="date">Date${arrow('date')}</th>
+    <th data-sort="customer">Customer${arrow('customer')}</th>
+    <th data-sort="line">Line${arrow('line')}</th>
+    <th data-sort="carrier">Carrier${arrow('carrier')}</th>
+    <th data-sort="type">Type${arrow('type')}</th>
+    <th data-sort="premium">Premium${arrow('premium')}</th>
+    <th data-sort="commission">Commission${arrow('commission')}</th>
+    <th data-sort="status">Status${arrow('status')}</th>
+    ${actions?'<th></th>':''}
+  </tr></thead><tbody>
+    ${rows.map(s=>`<tr>
+      <td style="white-space:nowrap">${esc((s.date||'').slice(5))}</td>
+      <td><strong>${esc(s.customer||'—')}</strong>${s.producer?`<div style="font-size:12px;color:var(--muted)">${esc(s.producer)}</div>`:''}</td>
+      <td>${esc(s.line)}</td>
+      <td>${esc(s.carrier||'—')}</td>
+      <td><span class="pill ${s.type==='Renewal'?'renewal':'new'}">${esc(s.type)}</span></td>
+      <td class="money">${fmt0(s.premium)}</td>
+      <td class="money pos">${fmt0(commissionOf(s))}</td>
+      <td><span class="pill ${(s.status||'').toLowerCase()}">${esc(s.status)}</span></td>
+      ${actions?`<td style="white-space:nowrap;text-align:right">
+        ${ncCell(s)}
+        ${canEdit(s)?`<button class="iconbtn" data-action="editSale" data-id="${s.id}" title="Edit">${editIco()}</button>
+        <button class="iconbtn del" data-action="delSale" data-id="${s.id}" title="Delete">${trashIco()}</button>`
+        :`<span title="Logged by another producer" style="color:var(--muted);font-size:12px;padding-right:6px">🔒</span>`}
+      </td>`:''}
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+function canEdit(s){
+  return !BACKEND.enabled || (CURRENT_USER && (CURRENT_USER.role==='admin' || s.created_by===CURRENT_USER.email));
+}
+function ncCell(s){
+  if(!NCENABLED || s.status!=='Bound') return '';
+  if(s.nc_pushed_at) return `<span class="ncbadge" title="Synced to NowCerts ${esc((s.nc_pushed_at||'').slice(0,10))}">✓ NowCerts</span>`;
+  if(!canEdit(s)) return '';
+  return `<button class="iconbtn nc" data-action="pushNc" data-id="${s.id}" title="Push to NowCerts">${cloudIco()}</button>`;
+}
+
+function renderTodos(){
+  const open=TODOS.filter(t=>!t.done).sort(sortTodo);
+  const done=TODOS.filter(t=>t.done).sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
+  document.getElementById('view').innerHTML = `
+    <div class="topbar">
+      <div><h1>To-Dos</h1><div class="sub">${open.length} open · ${done.length} completed</div></div>
+      <button class="btn primary" data-action="openTodo">${plus()} New To-Do</button>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      ${open.length ? open.map(todoRow).join('') : emptyState('All clear','Nothing outstanding. Add a task to stay on top of follow-ups.')}
+    </div>
+    ${done.length?`<div class="secthead"><h3 style="font-family:Fraunces;font-size:15px;color:var(--muted)">Completed</h3>
+      <button class="btn ghost" data-action="clearDone" style="padding:6px 12px">Clear completed</button></div>
+      <div class="card">${done.map(todoRow).join('')}</div>`:''}`;
+}
+function sortTodo(a,b){
+  const pr={high:0,med:1,low:2};
+  const da=a.due||'9999', db=b.due||'9999';
+  if(da!==db) return da<db?-1:1;
+  return pr[a.prio]-pr[b.prio];
+}
+function todoRow(t){
+  const over = t.due && !t.done && t.due < todayISO();
+  const dlabel = t.due ? new Date(t.due+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+  return `<div class="todo ${t.done?'done':''}">
+    <button class="check" data-action="toggleTodo" data-id="${t.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+    <div class="body"><div class="txt">${esc(t.text)}</div>
+      <div class="meta"><span class="prio ${t.prio}"></span>${t.prio[0].toUpperCase()+t.prio.slice(1)} priority
+        ${t.due?`· <span class="due ${over?'over':''}">${over?'Overdue · ':''}Due ${dlabel}</span>`:''}</div>
+    </div>
+    <button class="iconbtn del" data-action="delTodo" data-id="${t.id}">${trashIco()}</button>
+  </div>`;
+}
+
+const HOT_EMOJIS = ['🔥','⭐','💎','🎯','🚀','💰','🐳','🏆','📈','🤝','☎️','⏳'];
+let editingHot = null, hotEmoji = '🔥';
+
+function renderHotlist(){
+  const max = HOT_MAX;
+  const items = HOTLIST.slice().sort((a,b)=>{
+    const da=a.due||'9999-99', db=b.due||'9999-99';
+    return da<db?-1:da>db?1:0;
+  });
+  const pct = Math.min(100, HOTLIST.length/max*100);
+  const full = HOTLIST.length>=max;
+  document.getElementById('view').innerHTML = `
+    <div class="topbar">
+      <div><h1>🔥 Hot List</h1><div class="sub">Your top prospects — the names you're actively working. Keep it to ${max}.</div></div>
+      <button class="btn amber" data-action="openHot" ${full?'disabled style="opacity:.5;cursor:not-allowed"':''}>${plus()} Add prospect</button>
+    </div>
+    <div class="hotmeter">
+      <span class="cnt ${full?'full':''}">${HOTLIST.length} / ${max}</span>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+      ${full?'<span style="font-size:12.5px;color:var(--rose);font-weight:600">List full — close one to add another 💪</span>':''}
+    </div>
+    ${items.length ? `<div class="hotgrid">${items.map(hotCard).join('')}</div>`
+      : emptyState('🔥 Your hot list is empty','Add the prospects you are chasing and what to do next.')}`;
+}
+function hotCard(h){
+  const over = h.due && h.due < todayISO();
+  const dlabel = h.due ? new Date(h.due+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : '';
+  const dueHtml = h.due
+    ? `<div class="due ${over?'over':''}">${over?'🚨 Overdue · ':'📅 '}${dlabel}</div>`
+    : `<div class="due none">📅 No date set</div>`;
+  return `<div class="hotcard">
+    <div class="top">
+      <span class="emoji">${esc(h.emoji||'🔥')}</span>
+      <span class="nm">${esc(h.name)}</span>
+      <span class="acts">
+        <button class="iconbtn" data-action="editHot" data-id="${h.id}" title="Edit">${editIco()}</button>
+        <button class="iconbtn del" data-action="delHot" data-id="${h.id}" title="Remove">${trashIco()}</button>
+      </span>
+    </div>
+    <div class="action">📌 ${h.action?esc(h.action):'<span class="muted">No next action yet</span>'}</div>
+    ${dueHtml}
+  </div>`;
+}
+function openHot(id){
+  editingHot = id || null;
+  const h = id ? HOTLIST.find(x=>x.id===id) : null;
+  if(!h && HOTLIST.length>=HOT_MAX){ toast('Hot list is full ('+HOT_MAX+' max) 🔥'); return; }
+  hotEmoji = h ? (h.emoji||'🔥') : '🔥';
+  document.getElementById('hotTitle').textContent = h?'🔥 Edit prospect':'🔥 Add to Hot List';
+  document.getElementById('saveHotBtn').textContent = h?'Save changes':'Add to hot list';
+  document.getElementById('h_name').value = h?h.name:'';
+  document.getElementById('h_action').value = h?(h.action||''):'';
+  document.getElementById('h_due').value = h?(h.due||''):'';
+  renderEmojiPicker();
+  toggleOv('hotOv',true);
+  setTimeout(()=>document.getElementById('h_name').focus(),50);
+}
+function renderEmojiPicker(){
+  document.getElementById('h_emojis').innerHTML = HOT_EMOJIS.map(e=>
+    `<button data-action="hotEmoji" data-id="${e}" class="${e===hotEmoji?'on':''}">${e}</button>`).join('');
+}
+async function saveHot(){
+  const name=document.getElementById('h_name').value.trim();
+  if(!name){ document.getElementById('h_name').focus(); return; }
+  const payload={name, emoji:hotEmoji, action:document.getElementById('h_action').value.trim(), due:document.getElementById('h_due').value};
+  try{
+    if(editingHot) await Data.updateHot(editingHot, payload);
+    else await Data.addHot(payload);
+    toggleOv('hotOv',false); go('hotlist');
+    toast(editingHot?'Prospect updated':hotEmoji+' Added to your hot list');
+  }catch(err){
+    if(String(err.message).includes('full')||String(err).includes('409')) toast('Hot list is full ('+HOT_MAX+' max) 🔥');
+    else { console.error(err); toast('Could not save'); }
+  }
+}
+
+function renderSettings(){
+  const s=SETTINGS;
+  document.getElementById('view').innerHTML = `
+    <div class="topbar"><div><h1>Settings</h1><div class="sub">Commission defaults, goals &amp; sale-notification email</div></div></div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+      <div class="card pad settings-sec">
+        <h3>Agency &amp; goal</h3><p>Drives the dashboard pacing and month stats.</p>
+        <div class="field" style="margin-bottom:14px"><label>Agency name</label><input id="s_agency" value="${esc(s.agency)}"></div>
+        <div class="field" style="margin-bottom:14px"><label>Display name (dashboard greeting)</label><input id="s_username" value="${esc(s.userName)}" placeholder="e.g. Logan"></div>
+        <div class="field"><label>Monthly premium goal ($)</label><input type="number" id="s_goal" value="${s.monthlyGoal}"><span class="hint">Agency-wide written premium target.</span></div>
+        ${BACKEND.enabled?`<div class="field" style="margin-top:14px"><label>My monthly goal ($)</label><input type="number" id="s_mygoal" value="${MYGOAL||''}"><span class="hint">Your personal target — drives the "My book" ring.</span></div>`:''}
+      </div>
+      <div class="card pad settings-sec">
+        <h3>Default commission rates</h3><p>Applied when a sale has no rate entered.</p>
+        <div class="fgrid" style="grid-template-columns:1fr 1fr">
+          <div class="field"><label>New business (%)</label><input type="number" step="0.1" id="s_rateNew" value="${s.rateNew}"></div>
+          <div class="field"><label>Renewal (%)</label><input type="number" step="0.1" id="s_rateRenewal" value="${s.rateRenewal}"></div>
+        </div>
+      </div>
+      <div class="card pad settings-sec" style="grid-column:1/-1">
+        <h3>Sale notification email</h3>
+        <p>When you log a sale, the tracker can email a summary. Without a webhook it opens a pre-filled message in your mail app.</p>
+        <div class="fgrid" style="grid-template-columns:1fr 1fr">
+          <div class="field"><label>Notify recipient(s)</label><input id="s_notify" value="${esc(s.notifyEmail)}" placeholder="manager@…, you@…"></div>
+          <div class="field"><label>From / reply-to (optional)</label><input id="s_from" value="${esc(s.fromEmail)}" placeholder="you@weinsurethings.com"></div>
+          <div class="field full"><label>Automatic-send webhook URL (optional)</label><input id="s_webhook" value="${esc(s.webhook)}" placeholder="https://sales.weinsurethings.com/api/notify"><span class="hint">Leave blank to use mailto. If set, sale JSON is POSTed here.</span></div>
+          <div class="field full"><label>Webhook token (optional)</label><input id="s_webhookToken" value="${esc(s.webhookToken)}" placeholder="matches WIT_HOOK_TOKEN on the server"><span class="hint">Sent as the X-WIT-Token header to authenticate the request.</span></div>
+        </div>
+      </div>
+      <div class="card pad settings-sec" style="grid-column:1/-1">
+        <h3>Access &amp; sign-in</h3>
+        <p>${AUTH.clientId
+          ? `Google sign-in is <strong>on</strong>. Allowed: ${esc(AUTH.allowedDomains.map(d=>'@'+d).join(', ')||'any')}${AUTH.allowedEmails.length?(' + '+esc(AUTH.allowedEmails.join(', '))):''}.`
+          : `Google sign-in is <strong>off</strong>. To require login, set <code>AUTH.clientId</code> near the top of this file's script to your Google OAuth Web Client ID.`}</p>
+        ${CURRENT_USER?`<div style="display:flex;align-items:center;gap:10px">
+          ${CURRENT_USER.picture?`<img src="${esc(CURRENT_USER.picture)}" referrerpolicy="no-referrer" style="width:34px;height:34px;border-radius:50%">`:''}
+          <div><div style="font-weight:600">${esc(CURRENT_USER.name||'')} ${CURRENT_USER.role?`<span class="pill ${CURRENT_USER.role==='admin'?'bound':'new'}" style="margin-left:6px">${esc(CURRENT_USER.role)}</span>`:''}</div><div style="color:var(--muted);font-size:13px">${esc(CURRENT_USER.email)}</div></div>
+          <button class="btn ghost" data-action="signout" style="margin-left:auto">Sign out</button></div>
+          <p style="margin-top:12px;font-size:12.5px">${CURRENT_USER.role==='admin'?'As an admin you can view and edit every producer sale.':'You can view the whole agency but only edit your own sales. Admins are set via <code>WIT_ADMINS</code> on the server.'}</p>`:''}
+      </div>
+      <div class="card pad settings-sec" style="grid-column:1/-1">
+        <h3>NowCerts AMS</h3>
+        <p>${NCENABLED
+          ? 'Connected. Bound sales show a <strong>push button</strong> in the Sales Log — once synced they are marked <span class="ncbadge">✓ NowCerts</span>.'
+          : 'Not connected. Set <code>WIT_NOWCERTS_USERNAME</code> / <code>WIT_NOWCERTS_PASSWORD</code> on the server to push policies to NowCerts.'}</p>
+        ${NCENABLED?`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn" data-action="ncTest">${cloudIco()} Test connection</button>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--ink-soft)">
+            <input type="checkbox" id="s_ncauto" ${SETTINGS.ncAutoPush?'checked':''} style="width:auto"> Auto-push bound sales as they're logged</label>
+          <span id="ncTestMsg" style="font-size:13px;font-weight:600"></span>
+        </div>`:''}
+      </div>
+      <div class="card pad settings-sec" style="grid-column:1/-1">
+        <h3>Data</h3><p>${BACKEND.enabled?'Your agency data is stored securely on the server and shared across signed-in users. Export a copy any time.':'Everything is stored locally in this app. Back up or move it here.'}</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" data-action="exportCsv">${dlIco()} Export sales CSV</button>
+          <button class="btn" data-action="exportJson">${dlIco()} Backup (JSON)</button>
+          <button class="btn" data-action="importJson">Import backup</button>
+          <button class="btn danger" data-action="wipe">Erase all data</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:20px"><button class="btn primary" data-action="saveSettings">Save settings</button></div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">`;
+  document.getElementById('importFile').addEventListener('change', doImport);
+}
+
+function onClick(e){
+  const th=e.target.closest('th[data-sort]');
+  if(th && current==='sales'){ const k=th.dataset.sort; sort.dir = sort.key===k ? -sort.dir : (k==='premium'||k==='commission'||k==='date'?-1:1); sort.key=k; renderSalesTable(); return; }
+  const el=e.target.closest('[data-action]'); if(!el) return;
+  const id=el.dataset.id, a=el.dataset.action;
+  ({
+    boardMetric:()=>{ board.metric=id; document.querySelectorAll('.mp').forEach(p=>p.classList.toggle('on',p.dataset.id===id)); drawBoard(); },
+    clearSample:()=>{ SALES=[]; TODOS=[]; demoMode=false; save.sales(); save.todos(); toast('Sample data cleared'); go('dashboard'); },
+    signout:()=>signOut(),
+    openSale:()=>openSale(),
+    editSale:()=>openSale(id),
+    closeSale:()=>toggleOv('saleOv',false),
+    saveSale:()=>saveSale(),
+    delSale:async()=>{ if(!confirm('Delete this sale?')) return;
+      const prev=[...SALES]; SALES=SALES.filter(s=>s.id!==id); go(current);
+      try{ if(BACKEND.enabled) await api('DELETE','/sales/'+id); else save.sales(); }
+      catch(e){ SALES=prev; go(current); toast(e.message||'Delete failed'); } },
+    scope:()=>{ board.scope=id; go('dashboard'); },
+    reloadApp:()=>initApp(),
+    ncTest:async()=>{
+      const m=document.getElementById('ncTestMsg'); if(m){ m.textContent='Testing…'; m.style.color='var(--muted)'; }
+      try{ await api('POST','/nowcerts/test'); if(m){ m.textContent='✓ Connected'; m.style.color='var(--emerald)'; } toast('NowCerts connection OK'); }
+      catch(e){ if(m){ m.textContent='✕ '+(e.message||'failed'); m.style.color='var(--rose)'; } }
+    },
+    pushNc:async()=>{
+      const s=SALES.find(x=>x.id===id); if(!s) return;
+      toast('Pushing to NowCerts…');
+      try{
+        await api('POST','/sales/'+id+'/push-nowcerts');
+        s.nc_pushed_at=new Date().toISOString();
+        go(current); toast('✓ Sent to NowCerts');
+      }catch(e){ toast('NowCerts: '+(e.message||'push failed')); }
+    },
+    openTodo:()=>{ document.getElementById('t_text').value=''; document.getElementById('t_due').value=''; document.getElementById('t_prio').value='med'; toggleOv('todoOv',true); setTimeout(()=>document.getElementById('t_text').focus(),50); },
+    openHot:()=>openHot(),
+    editHot:()=>openHot(id),
+    closeHot:()=>toggleOv('hotOv',false),
+    saveHot:()=>saveHot(),
+    hotEmoji:()=>{ hotEmoji=id; renderEmojiPicker(); },
+    delHot:async()=>{ if(confirm('Remove this prospect from your hot list?')){ await Data.deleteHot(id); go('hotlist'); } },
+    closeTodo:()=>toggleOv('todoOv',false),
+    saveTodo:()=>saveTodo(),
+    toggleTodo:async()=>{ await Data.toggleTodo(id); go('todos'); },
+    delTodo:async()=>{ await Data.deleteTodo(id); go('todos'); },
+    clearDone:async()=>{ await Data.clearDone(); go('todos'); },
+    saveSettings:()=>saveSettings(),
+    exportCsv:()=>exportCsv(),
+    exportJson:()=>exportJson(),
+    importJson:()=>document.getElementById('importFile').click(),
+    wipe:async()=>{ if(confirm('Erase ALL sales, to-dos and settings? This cannot be undone.')){
+      if(BACKEND.enabled){ for(const s of [...SALES]) await api('DELETE','/sales/'+s.id); for(const t of [...TODOS]) await api('DELETE','/todos/'+t.id); SETTINGS={...DEFAULT_SETTINGS}; await Data.saveSettings(); SALES=[]; TODOS=[]; }
+      else { SALES=[];TODOS=[];SETTINGS={...DEFAULT_SETTINGS}; demoMode=false; Store.set('wit_seeded',true); save.sales();save.todos();save.settings(); }
+      go('dashboard'); toast('All data erased'); } }
+  }[a]||(()=>{}))();
+}
+function onInput(e){
+  if(['f_premium','f_rate','f_type'].includes(e.target.id)) updateCommPreview();
+  if(e.target.id==='searchBox'){ salesFilter.q=e.target.value; renderSalesTable(); }
+  if(e.target.id==='fStatus'){ salesFilter.status=e.target.value; renderSalesTable(); }
+  if(e.target.id==='fType'){ salesFilter.type=e.target.value; renderSalesTable(); }
+}
+
+function openSale(id){
+  editingId=id||null;
+  const s = id ? SALES.find(x=>x.id===id) : null;
+  document.getElementById('saleTitle').textContent = s?'Edit Sale':'Log a Sale';
+  document.getElementById('saveSaleBtn').textContent = s?'Save changes':'Save sale';
+  const v=(k,d='')=>s?(s[k]??d):d;
+  document.getElementById('f_date').value = v('date',todayISO());
+  document.getElementById('f_producer').value = v('producer', (CURRENT_USER && (CURRENT_USER.name||CURRENT_USER.email)) || '');
+  document.getElementById('f_customer').value = v('customer');
+  document.getElementById('f_line').value = v('line','Auto');
+  document.getElementById('f_carrier').value = v('carrier');
+  document.getElementById('f_type').value = v('type','New');
+  document.getElementById('f_status').value = v('status','Bound');
+  document.getElementById('f_premium').value = v('premium');
+  document.getElementById('f_rate').value = (s && s.rate!=='' && s.rate!=null)?s.rate:'';
+  document.getElementById('f_notes').value = v('notes');
+  updateCommPreview();
+  toggleOv('saleOv',true);
+  setTimeout(()=>document.getElementById('f_customer').focus(),50);
+}
+function readSaleForm(){
+  return {
+    date:document.getElementById('f_date').value||todayISO(),
+    producer:document.getElementById('f_producer').value.trim(),
+    customer:document.getElementById('f_customer').value.trim(),
+    line:document.getElementById('f_line').value,
+    carrier:document.getElementById('f_carrier').value.trim(),
+    type:document.getElementById('f_type').value,
+    status:document.getElementById('f_status').value,
+    premium:parseFloat(document.getElementById('f_premium').value)||0,
+    rate:document.getElementById('f_rate').value===''?'':parseFloat(document.getElementById('f_rate').value),
+    notes:document.getElementById('f_notes').value.trim()
+  };
+}
+function updateCommPreview(){
+  const d=readSaleForm();
+  document.getElementById('f_commPreview').textContent = fmt(commissionOf(d));
+}
+async function saveSale(){
+  const d=readSaleForm();
+  if(!d.customer){ toast('Add a customer name'); document.getElementById('f_customer').focus(); return; }
+  try{
+    if(editingId){
+      await Data.updateSale(editingId, d);
+      toggleOv('saleOv',false); go(current); toast('Sale updated');
+    }else{
+      const sale=await Data.addSale(d);
+      toggleOv('saleOv',false); go(current);
+      toast('Sale logged · '+fmt0(commissionOf(sale))+' commission');
+      if(d.status!=='Lost') sendSaleNotification(sale);
+      if(NCENABLED && SETTINGS.ncAutoPush && sale.status==='Bound'){
+        try{ await api('POST','/sales/'+sale.id+'/push-nowcerts'); sale.nc_pushed_at=new Date().toISOString(); if(current==='sales'||current==='dashboard') go(current); toast('✓ Synced to NowCerts'); }
+        catch(e){ toast('NowCerts auto-push failed — push it manually from the Sales Log'); }
+      }
+    }
+  }catch(e){ console.error(e); toast('Could not save — check your connection'); }
+}
+
+async function saveTodo(){
+  const text=document.getElementById('t_text').value.trim();
+  if(!text){ document.getElementById('t_text').focus(); return; }
+  try{
+    await Data.addTodo({text, due:document.getElementById('t_due').value, prio:document.getElementById('t_prio').value});
+    toggleOv('todoOv',false); go('todos');
+  }catch(e){ console.error(e); toast('Could not save to-do'); }
+}
+
+async function saveSettings(){
+  SETTINGS.agency=document.getElementById('s_agency').value.trim()||'We Insure Things';
+  SETTINGS.userName=document.getElementById('s_username').value.trim();
+  SETTINGS.monthlyGoal=parseFloat(document.getElementById('s_goal').value)||0;
+  SETTINGS.rateNew=parseFloat(document.getElementById('s_rateNew').value)||0;
+  SETTINGS.rateRenewal=parseFloat(document.getElementById('s_rateRenewal').value)||0;
+  SETTINGS.notifyEmail=document.getElementById('s_notify').value.trim();
+  SETTINGS.fromEmail=document.getElementById('s_from').value.trim();
+  SETTINGS.webhook=document.getElementById('s_webhook').value.trim();
+  SETTINGS.webhookToken=document.getElementById('s_webhookToken').value.trim();
+  const ncAuto=document.getElementById('s_ncauto'); if(ncAuto) SETTINGS.ncAutoPush=ncAuto.checked;
+  const myGoalEl=document.getElementById('s_mygoal');
+  if(myGoalEl){ MYGOAL=parseFloat(myGoalEl.value)||0; await Data.savePrefs(); }
+  await Data.saveSettings(); toast('Settings saved'); go('settings');
+}
+
+function buildEmail(sale){
+  const comm=commissionOf(sale);
+  const subject=`New sale: ${sale.customer} · ${sale.line} · ${fmt0(sale.premium)}`;
+  const body=
+`A new sale was logged in the ${SETTINGS.agency} tracker.
+
+Customer:    ${sale.customer}
+Producer:    ${sale.producer||'—'}
+Line:        ${sale.line}
+Carrier:     ${sale.carrier||'—'}
+Type:        ${sale.type}
+Status:      ${sale.status}
+Premium:     ${fmt(sale.premium)}
+Commission:  ${fmt(comm)}
+Date:        ${sale.date}
+Notes:       ${sale.notes||'—'}`;
+  return {subject,body};
+}
+async function sendSaleNotification(sale){
+  if(!SETTINGS.notifyEmail){ return; }
+  const {subject,body}=buildEmail(sale);
+  const hook = SETTINGS.webhook || (BACKEND.enabled ? BACKEND.base+'/notify' : '');
+  if(hook){
+    try{
+      const headers={'Content-Type':'application/json'};
+      if(SETTINGS.webhookToken) headers['X-WIT-Token']=SETTINGS.webhookToken;
+      const res=await fetch(hook,{method:'POST',credentials:'include',headers,
+        body:JSON.stringify({notify:SETTINGS.notifyEmail,from:SETTINGS.fromEmail,subject,body,
+          agency:SETTINGS.agency, sale:{...sale, commission:commissionOf(sale)}})});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      toast('Notification sent to '+SETTINGS.notifyEmail);
+    }catch(err){ console.error(err); toast('Webhook failed — opening mail app'); openMailto(subject,body); }
+  }else{
+    openMailto(subject,body);
+  }
+}
+function openMailto(subject,body){
+  const url=`mailto:${encodeURIComponent(SETTINGS.notifyEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  try{ window.open(url,'_blank'); }catch(e){ location.href=url; }
+}
+
+function download(name,content,type){
+  const blob=new Blob([content],{type}); const u=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+function exportCsv(){
+  if(!SALES.length){ toast('No sales to export'); return; }
+  const head=['Date','Producer','Customer','Line','Carrier','Type','Status','Premium','Rate%','Commission','Notes'];
+  const rows=SALES.map(s=>[s.date,s.producer,s.customer,s.line,s.carrier,s.type,s.status,s.premium,
+    (s.rate!==''&&s.rate!=null)?s.rate:(s.type==='Renewal'?SETTINGS.rateRenewal:SETTINGS.rateNew),
+    commissionOf(s).toFixed(2),(s.notes||'').replace(/\n/g,' ')]
+    .map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(','));
+  download('wit-sales-'+todayISO()+'.csv',[head.join(','),...rows].join('\n'),'text/csv');
+  toast('CSV exported');
+}
+function exportJson(){
+  download('wit-tracker-backup-'+todayISO()+'.json',JSON.stringify({sales:SALES,todos:TODOS,settings:SETTINGS},null,2),'application/json');
+  toast('Backup downloaded');
+}
+function doImport(e){
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=async()=>{ try{
+    const d=JSON.parse(r.result);
+    if(BACKEND.enabled){
+      if(d.settings){ SETTINGS={...DEFAULT_SETTINGS,...d.settings}; await Data.saveSettings(); }
+      for(const s of (d.sales||[])) await api('POST','/sales',s);
+      for(const t of (d.todos||[])) await api('POST','/todos',t);
+      await initApp();
+    } else {
+      if(d.sales) SALES=d.sales; if(d.todos) TODOS=d.todos; if(d.settings) SETTINGS={...DEFAULT_SETTINGS,...d.settings};
+      save.sales();save.todos();save.settings(); go('dashboard');
+    }
+    toast('Backup imported');
+  }catch(err){ console.error(err); toast('Could not import that file'); } };
+  r.readAsText(file); e.target.value='';
+}
+
+function toggleOv(id,open){ document.getElementById(id).classList.toggle('open',open); }
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3200); }
+function emptyState(t,s){ return `<div class="empty">${boxIco()}<div style="font-weight:600;color:var(--ink);font-family:Fraunces;font-size:17px">${t}</div><div>${s}</div></div>`; }
+
+function plus(){return svg('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>')}
+function searchIco(){return svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}
+function editIco(){return svg('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/>')}
+function trashIco(){return svg('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')}
+function dlIco(){return svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>')}
+function boxIco(){return svg('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>')}
+function starIco(){return svg('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>')}
+function histIco(){return svg('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>')}
+function targetIco(){return svg('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>')}
+function cloudIco(){return svg('<path d="M16 16a4 4 0 0 0 0-8 5 5 0 0 0-9.6-1.5A3.5 3.5 0 0 0 6 13.5"/><polyline points="9 14 12 11 15 14"/><line x1="12" y1="11" x2="12" y2="19"/>')}
+function svg(inner){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`}
+
+boot();
+</script>
+</body>
+</html>
